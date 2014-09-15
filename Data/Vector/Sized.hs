@@ -9,7 +9,7 @@ module Data.Vector.Sized ( -- * Vectors and indices
                            -- ** Re-exports
                            module Data.Type.Ordinal,
                            -- * Conversion & Construction
-                           replicate, replicate', singleton, uncons,
+                           replicate, replicate', iterate, iterate', singleton, uncons,
                            -- ** List
                            fromList, fromList', unsafeFromList, unsafeFromList', toList,
                            -- * Basic functions
@@ -85,6 +85,17 @@ replicate (SS n) a = a :- replicate n a
 -- | 'replicate', with the length inferred.
 replicate' :: forall n a. SingI n => a -> Vector a n
 replicate' = replicate (sing :: SNat n)
+
+-- | 'iterate' @n f x@ is a vector of length @n@ consisting of repeated
+-- applications of @f@ to @x@.
+
+iterate :: SNat n -> (a -> a) -> a -> Vector a n
+iterate SZ _ _ = Nil
+iterate (SS n) f x = f x :- iterate n f (f x)
+
+-- | 'iterate', with the length inferred.
+iterate' :: forall n a. SingI n => (a -> a) -> a -> Vector a n
+iterate' = iterate (sing :: SNat n)
 
 -- | Construct a singleton vector.
 singleton :: a -> Vector a (S Z)
