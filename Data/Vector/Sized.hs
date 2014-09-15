@@ -184,8 +184,8 @@ map f (x :- xs) = f x :- map f xs
 -- | 'imap' @f xs@ is the vector obtained by applying @f@ to each element of xs
 -- together with its position.
 
-imap :: SingI n => (Nat -> a -> b) -> Vector a n -> Vector b n
-imap fn = map (P.uncurry fn) . zipSame (iterate' S Z)
+imap :: (Index n -> a -> b) -> Vector a n -> Vector b n
+imap fn vs = map (P.uncurry fn) $ zipSame (ordinalVecs $ sLength vs) vs
 
 -- | 'reverse' @xs@ returns the elements of xs in reverse order. @xs@ must be finite.
 reverse :: forall a n. Vector a n -> Vector a n
