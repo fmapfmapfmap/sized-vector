@@ -15,7 +15,7 @@ module Data.Vector.Sized ( -- * Vectors and indices
                            -- * Basic functions
                            append, head, last, tail, null, length, sLength,
                            -- * Vector transformations
-                           map, reverse, intersperse, transpose,
+                           map, imap, reverse, intersperse, transpose,
                            -- * Reducing vectors (folds)
                            foldl, foldl', foldl1, foldl1', foldr, foldr1,
                            -- ** Special folds
@@ -180,6 +180,12 @@ sLength (_ :- xs) = sS $ sLength xs
 map :: (a -> b) -> Vector a n -> Vector b n
 map _ Nil       = Nil
 map f (x :- xs) = f x :- map f xs
+
+-- | 'imap' @f xs@ is the vector obtained by applying @f@ to each element of xs
+-- together with its position.
+
+imap :: SingI n => (Nat -> a -> b) -> Vector a n -> Vector b n
+imap fn = map (P.uncurry fn) . zipSame (iterate' S Z)
 
 -- | 'reverse' @xs@ returns the elements of xs in reverse order. @xs@ must be finite.
 reverse :: forall a n. Vector a n -> Vector a n
