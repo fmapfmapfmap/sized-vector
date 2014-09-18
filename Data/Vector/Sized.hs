@@ -9,13 +9,14 @@ module Data.Vector.Sized ( -- * Vectors and indices
                            -- ** Re-exports
                            module Data.Type.Ordinal,
                            -- * Conversion & Construction
-                           replicate, replicate', singleton, uncons,
+                           replicate, replicate', iterate, iterate', singleton, uncons
+                         , generate,
                            -- ** List
                            fromList, fromList', unsafeFromList, unsafeFromList', toList,
                            -- * Basic functions
                            append, head, last, tail, init, null, length, sLength,
                            -- * Vector transformations
-                           map, reverse, intersperse, transpose,
+                           map, imap, reverse, intersperse, transpose, sequence,
                            -- * Reducing vectors (folds)
                            foldl, foldl', foldl1, foldl1', foldr, foldr1,
                            -- ** Special folds
@@ -43,9 +44,10 @@ import           Data.Type.Monomorphic
 import           Data.Type.Natural     hiding (promote)
 import           Data.Type.Ordinal
 import qualified Prelude               as P
-import           Prelude               (Eq(..), Bool(..), Int, Show(..), (&&), Num(..)
-                                       , (||), not, error, ($), (.), seq, fst, snd
-                                       , flip, otherwise)
+import           Prelude               (Eq(..), Bool(..), Int, Double, Show(..), (&&), Num(..)
+                                       , (||), not, error, ($), (.), seq, fst, snd, pred
+                                       , flip, otherwise, (**), (/), mod, (^), ceiling
+                                       , fromIntegral)
 import           Proof.Equational      hiding (promote)
 
 -- | Fixed-length list.
@@ -86,6 +88,17 @@ replicate (SS n) a = a :- replicate n a
 -- | 'replicate', with the length inferred.
 replicate' :: forall n a. SingI n => a -> Vector a n
 replicate' = replicate (sing :: SNat n)
+
+-- | 'iterate' @n f x@ is a vector of length @n@ consisting of repeated
+-- applications of @f@ to @x@.
+
+iterate :: SNat n -> (a -> a) -> a -> Vector a n
+iterate SZ _ _ = Nil
+iterate (SS n) f x = f x :- iterate n f (f x)
+
+-- | 'iterate', with the length inferred.
+iterate' :: forall n a. SingI n => (a -> a) -> a -> Vector a n
+iterate' = iterate (sing :: SNat n)
 
 -- | Construct a singleton vector.
 singleton :: a -> Vector a (S Z)
@@ -170,6 +183,12 @@ sLength (_ :- xs) = sS $ sLength xs
 map :: (a -> b) -> Vector a n -> Vector b n
 map _ Nil       = Nil
 map f (x :- xs) = f x :- map f xs
+
+-- | 'imap' @f xs@ is the vector obtained by applying @f@ to each element of xs
+-- together with its position.
+
+imap :: (Index n -> a -> b) -> Vector a n -> Vector b n
+imap fn vs = map (P.uncurry fn) $ zipSame (ordinalVecs $ sLength vs) vs
 
 -- | 'reverse' @xs@ returns the elements of xs in reverse order. @xs@ must be finite.
 reverse :: forall a n. Vector a n -> Vector a n
@@ -442,3 +461,26 @@ ordinalVecs (SS sn) = OZ :- map OS (ordinalVecs sn)
 
 ifoldl :: (a -> Index n -> b -> a) -> a -> Vector b n -> a
 ifoldl fun a0 vs = foldl (\a (b, c) -> fun a b c) a0 $ zipSame (ordinalVecs $ sLength vs) vs
+
+-- | 'generate' a vector from its indices.
+generate :: forall n a. SingI n => (Index n -> a) -> Vector a n
+generate = flip map $ ordinalVecs (sing :: SNat n)
+
+-- | 'sequence' determines the n-ary Cartesian product of a two-dimensional
+-- Vector comprised of fixed-length vectors.
+sequence :: SingI m => SingI n => SingI (m :**: n) => Vector (Vector a m) n -> Vector (Vector a n) (m :**: n)
+sequence = generate2D . against sing sing
+  where against :: SingI m => SNat m -> SNat n -> Vector (Vector a m) n -> (Index (m :**: n) -> Index n -> a)
+        against m n vs = \x y -> do
+          let m' = fromIntegral $ sNatToInt m
+              n' = fromIntegral $ sNatToInt n
+              x' = fromIntegral $ ordToInt x
+              y' = fromIntegral $ ordToInt y
+              ix = ceiling (x' / m'^(n'-1-y')) `mod` ceiling m'
+          vs %!! y %!! unsafeFromInt ix
+
+ordinalVecs2D' :: SingI n => SingI m => Vector (Vector (Ordinal n, Ordinal m) m) n
+ordinalVecs2D' = map (imap (flip (,)) . replicate') $ generate P.id
+
+generate2D :: forall n a. SingI n => SingI m => (Index n -> Index m -> a) -> Vector (Vector a m) n
+generate2D f = map (map $ P.uncurry f) $ ordinalVecs2D'
