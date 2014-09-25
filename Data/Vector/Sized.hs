@@ -46,7 +46,7 @@ import           Data.Type.Ordinal
 import qualified Prelude               as P
 import           Prelude               (Eq(..), Bool(..), Int, Double, Show(..), (&&), Num(..)
                                        , (||), not, error, ($), (.), seq, fst, snd, pred
-                                       , flip, otherwise, (**), (/), mod, (^), ceiling
+                                       , flip, otherwise, (/), mod, (^), ceiling
                                        , fromIntegral)
 import           Proof.Equational      hiding (promote)
 
@@ -467,15 +467,15 @@ generate = flip map $ ordinalVecs (sing :: SNat n)
 
 -- | 'sequence' determines the n-ary Cartesian product of a two-dimensional
 -- Vector comprised of fixed-length vectors.
-sequence :: SingI m => SingI n => SingI (m :**: n) => Vector (Vector a m) n -> Vector (Vector a n) (m :**: n)
+sequence :: SingI m => SingI n => SingI (m :^: n) => Vector (Vector a m) n -> Vector (Vector a n) (m :^: n)
 sequence = generate2D . against sing sing
-  where against :: SingI m => SNat m -> SNat n -> Vector (Vector a m) n -> (Index (m :**: n) -> Index n -> a)
+  where against :: SingI m => SNat m -> SNat n -> Vector (Vector a m) n -> (Index (m :^: n) -> Index n -> a)
         against m n vs = \x y -> do
           let m' = fromIntegral $ sNatToInt m
               n' = fromIntegral $ sNatToInt n
               x' = fromIntegral $ ordToInt x
               y' = fromIntegral $ ordToInt y
-              ix = ceiling (x' / m'^(n'-1-y')) `mod` ceiling m'
+              ix = ceiling (x' / m' P.^ (n'-1-y')) `P.mod` ceiling m'
           vs %!! y %!! unsafeFromInt ix
 
 ordinalVecs2D' :: SingI n => SingI m => Vector (Vector (Ordinal n, Ordinal m) m) n
